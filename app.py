@@ -49,10 +49,14 @@ data = [
     ("How to make a high-protein smoothie?", "recipes"),
 
     # General Health & Wellness
-    ("What are the benefits of drinking water?", "general_health"),
     ("How many hours of sleep do I need?", "general_health"),
     ("Tips for managing stress", "general_health"),
-    ("Why is hydration important?", "general_health")
+    ("Why is hydration important?", "general_health"),
+
+    # Water Benefits
+    ("What are the benefits of drinking water?", "water_benefits"),
+    ("Why should I drink water?", "water_benefits"),
+    ("Is drinking water good for health?", "water_benefits")
 ]
 
 train_texts, train_labels = zip(*data)
@@ -63,47 +67,64 @@ X_train = vectorizer.fit_transform(train_texts)
 clf = LogisticRegression()
 clf.fit(X_train, train_labels)
 
-# ------------------- Response Handlers -------------------
-def handle_eating_tips(_: str) -> str:
-    return (
-        "**Healthy Eating Tips**\n"
-        "- Focus on whole foods: fruits, vegetables, lean proteins, and whole grains.\n"
-        "- Stay hydrated throughout the day.\n"
-        "- Practice portion control.\n"
-        "- Limit processed foods and sugary drinks."
-    )
+# ------------------- Response Handlers with QA dictionaries -------------------
+def handle_eating_tips(question: str) -> str:
+    qa = {
+        "what are some good high-protein foods": "- Include eggs, chicken, fish, lentils, beans, Greek yogurt, and tofu.",
+        "healthy breakfast ideas for weight loss": "- Try oatmeal with fruits, smoothies, or egg whites with veggies.",
+        "is intermittent fasting effective": "- It can help with weight control if done safely and consistently.",
+        "tell me about the benefits of a mediterranean diet": "- Rich in fruits, vegetables, healthy fats, and reduces heart disease risk.",
+        "how to reduce sugar intake": "- Avoid sugary drinks, read labels, and choose natural sweeteners.",
+        "tips for meal prepping": "- Plan meals in advance, use containers, and cook in batches."
+    }
+    key = question.lower().strip().rstrip("?")
+    return qa.get(key, "Here's a healthy eating tip: Focus on whole foods and stay hydrated.")
 
-def handle_fitness_tips(_: str) -> str:
-    return (
-        "**Fitness Tips**\n"
-        "- Consistency is key. Start with 2–3 workouts per week.\n"
-        "- Mix cardio and strength training.\n"
-        "- Always warm up before and cool down after.\n"
-        "- Listen to your body—don’t push through sharp pain."
-    )
+def handle_fitness_tips(question: str) -> str:
+    qa = {
+        "what are the best exercises for beginners": "- Start with bodyweight exercises like squats, push-ups, and walking.",
+        "how to build muscle": "- Combine strength training with proper nutrition, focusing on protein intake.",
+        "best cardio for burning fat": "- Running, cycling, swimming, or HIIT workouts are effective.",
+        "whats a good workout routine for a week": "- Alternate strength training and cardio; rest 1–2 days a week.",
+        "how to stretch before a workout": "- Do dynamic stretches like leg swings, arm circles, and lunges.",
+        "advice for staying motivated to exercise": "- Set goals, track progress, vary workouts, and find a workout buddy."
+    }
+    key = question.lower().strip().rstrip("?")
+    return qa.get(key, "Here's a general tip: Stay consistent and listen to your body.")
 
-def handle_recipes(_: str) -> str:
-    return (
-        "**Recipe Ideas**\n"
-        "- Quinoa salad with grilled chicken and veggies.\n"
-        "- Stir-fry with tofu or lean meat.\n"
-        "- High-protein smoothie: Greek yogurt + protein powder + mixed berries."
-    )
+def handle_recipes(question: str) -> str:
+    qa = {
+        "can you give me a healthy chicken recipe": "- Try grilled chicken with veggies and quinoa.",
+        "whats a good salad recipe for lunch": "- Mix greens, cherry tomatoes, cucumber, grilled chicken, and olive oil.",
+        "easy and healthy dinner ideas": "- Stir-fried veggies with tofu or salmon with steamed veggies.",
+        "how to make a high-protein smoothie": "- Blend Greek yogurt, protein powder, banana, and berries."
+    }
+    key = question.lower().strip().rstrip("?")
+    return qa.get(key, "Here's a healthy recipe tip: Include lean proteins and fresh vegetables.")
 
-def handle_general_health(_: str) -> str:
-    return (
-        "**General Health Info**\n"
-        "- Most adults need 7–9 hours of sleep.\n"
-        "- Hydration helps energy, brain function, and skin.\n"
-        "- Regular exercise and a balanced diet help manage stress."
-    )
+def handle_general_health(question: str) -> str:
+    qa = {
+        "how many hours of sleep do i need": "- Most adults need 7–9 hours of sleep per night.",
+        "tips for managing stress": "- Practice mindfulness, exercise regularly, and maintain a balanced lifestyle.",
+        "why is hydration important": "- It helps energy, brain function, and keeps your skin healthy."
+    }
+    key = question.lower().strip().rstrip("?")
+    return qa.get(key, "Remember to stay active, hydrated, and sleep well.")
+
+def handle_water_benefits(question: str) -> str:
+    qa = {
+        "what are the benefits of drinking water": "- Keeps you hydrated, aids digestion, maintains skin health, regulates temperature, lubricates joints, and flushes toxins.",
+        "why should i drink water": "- Water is essential for energy, brain function, and overall health.",
+        "is drinking water good for health": "- Absolutely, water supports all vital functions in your body."
+    }
+    key = question.lower().strip().rstrip("?")
+    return qa.get(key, "Drink water regularly to stay healthy and hydrated.")
 
 # ------------------- Gemini API Call -------------------
 def get_api_response(prompt: str) -> str:
     if not GEMINI_API_KEY:
         return "API key is not configured. Please set GOOGLE_API_KEY in your .env file."
     try:
-        # Use a lightweight, fast model. Change if you prefer another.
         model = genai.GenerativeModel("gemini-2.0-flash")
         response = model.generate_content(
             f"You are a helpful health, fitness, and nutrition assistant. Be brief, factual, and friendly.\n\nUser: {prompt}"
@@ -137,7 +158,11 @@ def ask():
         print(f"Prediction Error: {e}")
         return jsonify({"response": "I hit a snag classifying that. Try again."})
 
-    CONFIDENCE_THRESHOLD = 0.4  # adjust as you like
+    print(f"Prompt: {prompt}")
+    print(f"Predicted category: {category}")
+    print(f"Confidence score: {max_prob}")
+
+    CONFIDENCE_THRESHOLD = 0.3
 
     if max_prob > CONFIDENCE_THRESHOLD:
         if category == "eating_tips":
@@ -148,6 +173,8 @@ def ask():
             response_text = handle_recipes(prompt)
         elif category == "general_health":
             response_text = handle_general_health(prompt)
+        elif category == "water_benefits":
+            response_text = handle_water_benefits(prompt)
         else:
             response_text = get_api_response(prompt)
     else:
