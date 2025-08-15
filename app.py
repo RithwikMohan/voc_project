@@ -1,6 +1,5 @@
 # ------------------- app.py -------------------
 import os
-import re
 from flask import Flask, render_template, request, jsonify
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
@@ -104,6 +103,7 @@ def get_api_response(prompt: str) -> str:
     if not GEMINI_API_KEY:
         return "API key is not configured. Please set GOOGLE_API_KEY in your .env file."
     try:
+        # Use a lightweight, fast model. Change if you prefer another.
         model = genai.GenerativeModel("gemini-2.0-flash")
         response = model.generate_content(
             f"You are a helpful health, fitness, and nutrition assistant. Be brief, factual, and friendly.\n\nUser: {prompt}"
@@ -112,13 +112,6 @@ def get_api_response(prompt: str) -> str:
     except Exception as e:
         print(f"Gemini API Error: {e}")
         return "Sorry, I couldn't fetch the answer. Please try again later."
-
-# ------------------- Clean Response Helper -------------------
-def clean_response(text: str) -> str:
-    """Remove markdown bold (**text**) and bullets (-, *, •) for clean display."""
-    text = re.sub(r"\*\*(.*?)\*\*", r"\1", text)
-    text = re.sub(r"^(\*|-|•)\s+", "", text, flags=re.MULTILINE)
-    return text.strip()
 
 # ------------------- Flask App -------------------
 app = Flask(__name__)
@@ -144,7 +137,7 @@ def ask():
         print(f"Prediction Error: {e}")
         return jsonify({"response": "I hit a snag classifying that. Try again."})
 
-    CONFIDENCE_THRESHOLD = 0.55
+    CONFIDENCE_THRESHOLD = 0.4  # adjust as you like
 
     if max_prob > CONFIDENCE_THRESHOLD:
         if category == "eating_tips":
@@ -159,9 +152,6 @@ def ask():
             response_text = get_api_response(prompt)
     else:
         response_text = get_api_response(prompt)
-
-    # Clean up markdown/bullets before sending to frontend
-    response_text = clean_response(response_text)
 
     return jsonify({"response": response_text})
 
