@@ -1,0 +1,7 @@
+- [x] Add "health_plan" category to ML training data in app.py
+- [x] Add training examples for health plan requests
+- [x] Modify /ask route to handle health_plan category with instructions
+- [x] Rename /health_assess route to /health_plan
+- [x] Update frontend script.js to submit to /health_plan
+- [x] Test ML classification for health plan queries
+- [x] Test complete health plan flow
